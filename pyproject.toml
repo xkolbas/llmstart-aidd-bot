@@ -5,6 +5,7 @@ description = "Telegram LLM-ассистент"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "aiogram>=3,<4",
+    "openai>=2,<3",
     "python-dotenv>=1,<2",
 ]
 

@@ -4,8 +4,11 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
+from openai import AsyncOpenAI
 
+from bot.dialogue_service import DialogueService
 from bot.handlers import router
+from bot.llm_client import LlmClient
 from bot.settings import Settings
 
 
@@ -14,8 +17,19 @@ async def main() -> None:
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
 
-    async with Bot(token=settings.telegram_bot_token) as bot:
-        await dispatcher.start_polling(bot)
+    async with (
+        AsyncOpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url="https://openrouter.ai/api/v1",
+            timeout=60.0,
+            max_retries=0,
+        ) as client,
+        Bot(token=settings.telegram_bot_token) as bot,
+    ):
+        dialogue_service = DialogueService(
+            LlmClient(client, settings.openrouter_model), settings.system_prompt
+        )
+        await dispatcher.start_polling(bot, dialogue_service=dialogue_service)
 
 
 def run() -> None:
