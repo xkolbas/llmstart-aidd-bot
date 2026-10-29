@@ -8,6 +8,7 @@ from openai import AsyncOpenAI
 
 from bot.dialogue_service import DialogueService
 from bot.handlers import router
+from bot.history_store import HistoryStore
 from bot.llm_client import LlmClient
 from bot.settings import Settings
 
@@ -27,7 +28,9 @@ async def main() -> None:
         Bot(token=settings.telegram_bot_token) as bot,
     ):
         dialogue_service = DialogueService(
-            LlmClient(client, settings.openrouter_model), settings.system_prompt
+            LlmClient(client, settings.openrouter_model),
+            settings.system_prompt,
+            HistoryStore(settings.history_max_exchanges),
         )
         await dispatcher.start_polling(bot, dialogue_service=dialogue_service)
 

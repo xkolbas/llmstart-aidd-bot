@@ -27,6 +27,8 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
                 ("group", "Привет"),
                 ("private", "/unknown"),
                 ("private", None),
+                ("group", "/clear"),
+                ("private", "/clear"),
             ],
             start=1,
         ):
@@ -42,17 +44,19 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
             )
             await dispatcher.feed_update(bot, update, dialogue_service=dialogue_service)
 
-        assert session.await_count == 2
+        assert session.await_count == 3
         method = session.await_args_list[0].args[1]
         assert isinstance(method, SendMessage)
         assert method.chat_id == 1
         assert method.text.startswith("Привет! Я бот-ассистент.")
         assert "текстовый вопрос" in method.text
-        assert "без истории диалога" in method.text
+        assert "/clear" in method.text
         reply = session.await_args_list[1].args[1]
         assert isinstance(reply, SendMessage)
         assert reply.chat_id == 1
         assert reply.text == "Ответ ассистента"
-        dialogue_service.reply.assert_awaited_once_with("Привет")
+        dialogue_service.reply.assert_awaited_once_with(1, "Привет")
+        dialogue_service.clear.assert_called_once_with(1)
+        assert session.await_args_list[2].args[1].text.startswith("История очищена")
 
     asyncio.run(check())
