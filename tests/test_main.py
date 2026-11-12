@@ -1,11 +1,12 @@
 import asyncio
+import logging
 from unittest.mock import AsyncMock, Mock, patch
 
 from bot.main import main
 from bot.settings import Settings
 
 
-def test_configures_clients_injects_service_and_closes_sessions():
+def test_configures_clients_injects_service_closes_sessions_and_logs(caplog):
     settings = Settings(
         telegram_bot_token="123456:test-token",
         openrouter_api_key="test-key",
@@ -24,7 +25,8 @@ def test_configures_clients_injects_service_and_closes_sessions():
         patch("bot.main.Bot", return_value=bot_context) as bot_factory,
         patch("bot.main.Dispatcher", return_value=dispatcher),
     ):
-        asyncio.run(main())
+        with caplog.at_level(logging.INFO, logger="bot.main"):
+            asyncio.run(main())
 
     sdk_factory.assert_called_once_with(
         api_key="test-key",
@@ -43,3 +45,5 @@ def test_configures_clients_injects_service_and_closes_sessions():
     assert service.history_store.get(1) == []
     sdk_context.__aexit__.assert_awaited_once()
     bot_context.__aexit__.assert_awaited_once()
+    assert "Бот запускается" in caplog.messages
+    assert "Бот остановлен" in caplog.messages

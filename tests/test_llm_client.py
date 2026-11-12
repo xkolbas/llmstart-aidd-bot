@@ -30,3 +30,22 @@ def test_does_not_retry_failed_request():
     with pytest.raises(RuntimeError, match="Тестовый сбой"):
         asyncio.run(LlmClient(sdk, "test-model").complete([]))
     sdk.chat.completions.create.assert_awaited_once()
+
+
+def test_cancels_request_after_total_timeout(monkeypatch):
+    sdk = AsyncMock(spec=AsyncOpenAI)
+    sdk.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
+
+    async def wait_forever(**kwargs):
+        await asyncio.Event().wait()
+
+    sdk.chat.completions.create.side_effect = wait_forever
+    monkeypatch.setattr("bot.llm_client.LLM_TIMEOUT_SECONDS", 0.01)
+
+    with pytest.raises(TimeoutError):
+        asyncio.run(LlmClient(sdk, "test-model").complete([]))
+
+    sdk.chat.completions.create.assert_awaited_once_with(
+        model="test-model",
+        messages=[],
+    )

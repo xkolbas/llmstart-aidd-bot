@@ -12,6 +12,8 @@ from bot.history_store import HistoryStore
 from bot.llm_client import LlmClient
 from bot.settings import Settings
 
+logger = logging.getLogger(__name__)
+
 
 async def main() -> None:
     settings = Settings.load()
@@ -32,7 +34,11 @@ async def main() -> None:
             settings.system_prompt,
             HistoryStore(settings.history_max_exchanges),
         )
-        await dispatcher.start_polling(bot, dialogue_service=dialogue_service)
+        logger.info("Бот запускается")
+        try:
+            await dispatcher.start_polling(bot, dialogue_service=dialogue_service)
+        finally:
+            logger.info("Бот остановлен")
 
 
 def run() -> None:
