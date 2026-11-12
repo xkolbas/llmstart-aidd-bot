@@ -1,4 +1,5 @@
-.PHONY: install run format lint test
+.PHONY: install run format lint test docker-build docker-up docker-down docker-logs \
+	docker-format docker-lint docker-test
 
 install:
 	uv sync --locked
@@ -15,3 +16,25 @@ lint:
 
 test:
 	uv run --locked pytest
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up --build --detach
+
+docker-down:
+	docker compose down
+
+docker-logs:
+	docker compose logs --follow bot
+
+docker-format:
+	docker compose run --rm bot uv run --locked ruff format .
+
+docker-lint:
+	docker compose run --rm bot uv run --locked ruff check .
+	docker compose run --rm bot uv run --locked ruff format --check .
+
+docker-test:
+	docker compose run --rm bot uv run --locked pytest
