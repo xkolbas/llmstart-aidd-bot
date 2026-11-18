@@ -8,10 +8,10 @@ from bot.history_store import HistoryStore
 from bot.llm_client import LlmClient
 
 
-def test_includes_prompt_current_question_and_user_history():
+def test_includes_prompt_current_question_and_user_history(tmp_path):
     client = AsyncMock(spec=LlmClient)
     client.complete.return_value = "Ответ"
-    store = HistoryStore(10)
+    store = HistoryStore(10, tmp_path)
     service = DialogueService(client, "Отвечай кратко", store)
 
     async def check():
@@ -39,15 +39,15 @@ def test_includes_prompt_current_question_and_user_history():
     assert len(store.get(2)) == 2
 
 
-def test_clear_starts_new_context():
+def test_clear_starts_new_context(tmp_path):
     client = AsyncMock(spec=LlmClient)
     client.complete.return_value = "Ответ"
-    store = HistoryStore(10)
+    store = HistoryStore(10, tmp_path)
     service = DialogueService(client, "Роль", store)
 
     async def check():
         await service.reply(1, "До очистки")
-        service.clear(1)
+        await service.clear(1)
         assert store.get(1) == []
         await service.reply(1, "После очистки")
 
@@ -57,10 +57,10 @@ def test_clear_starts_new_context():
     )
 
 
-def test_failed_request_keeps_history_unchanged():
+def test_failed_request_keeps_history_unchanged(tmp_path):
     client = AsyncMock(spec=LlmClient)
     client.complete.side_effect = RuntimeError("Тестовый сбой")
-    store = HistoryStore(1)
+    store = HistoryStore(1, tmp_path)
     store.append(1, {"role": "user", "content": "Старый вопрос"})
     store.append(1, {"role": "assistant", "content": "Старый ответ"})
     previous = store.get(1)
@@ -71,10 +71,10 @@ def test_failed_request_keeps_history_unchanged():
 
 
 @pytest.mark.parametrize("reply", ["", " \n "])
-def test_empty_response_keeps_history_unchanged(reply):
+def test_empty_response_keeps_history_unchanged(reply, tmp_path):
     client = AsyncMock(spec=LlmClient)
     client.complete.return_value = reply
-    store = HistoryStore(1)
+    store = HistoryStore(1, tmp_path)
     store.append(1, {"role": "user", "content": "Старый вопрос"})
     store.append(1, {"role": "assistant", "content": "Старый ответ"})
     previous = store.get(1)

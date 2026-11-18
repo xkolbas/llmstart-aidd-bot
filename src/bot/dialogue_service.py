@@ -1,5 +1,7 @@
 """Подготовка запроса и получение ответа ассистента."""
 
+import asyncio
+
 from bot.history_store import HistoryStore
 from bot.llm_client import LlmClient
 
@@ -13,17 +15,17 @@ class DialogueService:
         self.history_store = history_store
 
     async def reply(self, user_id: int, text: str) -> str:
+        history = await asyncio.to_thread(self.history_store.get, user_id)
         reply = await self.llm_client.complete(
             [
                 {"role": "system", "content": self.system_prompt},
-                *self.history_store.get(user_id),
+                *history,
                 {"role": "user", "content": text},
             ]
         )
         if reply.strip():
-            self.history_store.append(user_id, {"role": "user", "content": text})
-            self.history_store.append(user_id, {"role": "assistant", "content": reply})
+            await asyncio.to_thread(self.history_store.append_exchange, user_id, text, reply)
         return reply
 
-    def clear(self, user_id: int) -> None:
-        self.history_store.clear(user_id)
+    async def clear(self, user_id: int) -> None:
+        await asyncio.to_thread(self.history_store.clear, user_id)

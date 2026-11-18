@@ -6,13 +6,14 @@ from bot.main import main
 from bot.settings import Settings
 
 
-def test_configures_clients_injects_service_closes_sessions_and_logs(caplog):
+def test_configures_clients_injects_service_closes_sessions_and_logs(caplog, tmp_path):
     settings = Settings(
         telegram_bot_token="123456:test-token",
         openrouter_api_key="test-key",
         openrouter_model="test-model",
         history_max_exchanges=10,
         system_prompt="Тестовая роль",
+        history_dir=tmp_path,
     )
     sdk_context = AsyncMock()
     bot_context = AsyncMock()

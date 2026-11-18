@@ -21,12 +21,12 @@ def message(user_id, text):
     )
 
 
-def test_clear_and_next_message_wait_until_previous_reply_is_sent():
+def test_clear_and_next_message_wait_until_previous_reply_is_sent(tmp_path):
     async def check():
         middleware = PerUserMiddleware()
         client = AsyncMock(spec=LlmClient)
         client.complete.return_value = "Ответ"
-        service = DialogueService(client, "Роль", HistoryStore(10))
+        service = DialogueService(client, "Роль", HistoryStore(10, tmp_path))
         sending = asyncio.Event()
         release = asyncio.Event()
         events = []
@@ -34,7 +34,7 @@ def test_clear_and_next_message_wait_until_previous_reply_is_sent():
         async def handler(event, data):
             events.append(f"{event.text}:start")
             if event.text == "/clear":
-                service.clear(event.from_user.id)
+                await service.clear(event.from_user.id)
             else:
                 await service.reply(event.from_user.id, event.text)
             if event.text == "Первый":
@@ -71,7 +71,7 @@ def test_clear_and_next_message_wait_until_previous_reply_is_sent():
     asyncio.run(asyncio.wait_for(check(), timeout=3))
 
 
-def test_different_users_are_processed_concurrently():
+def test_different_users_are_processed_concurrently(tmp_path):
     async def check():
         middleware = PerUserMiddleware()
         first_started = asyncio.Event()
@@ -92,7 +92,7 @@ def test_different_users_are_processed_concurrently():
     asyncio.run(asyncio.wait_for(check(), timeout=3))
 
 
-def test_exception_releases_user_lock():
+def test_exception_releases_user_lock(tmp_path):
     async def check():
         middleware = PerUserMiddleware()
         handler = AsyncMock(side_effect=[RuntimeError("Тестовый сбой"), "Ответ"])

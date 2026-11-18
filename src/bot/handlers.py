@@ -45,7 +45,12 @@ async def start(message: Message) -> None:
 
 @router.message(Command("clear"), F.chat.type == "private", F.from_user)
 async def clear(message: Message, dialogue_service: DialogueService) -> None:
-    dialogue_service.clear(message.from_user.id)
+    try:
+        await dialogue_service.clear(message.from_user.id)
+    except Exception as error:
+        logger.error("Ошибка очистки истории: %s", type(error).__name__)
+        await send_text(message, "Не удалось очистить историю. Попробуйте ещё раз")
+        return
     await send_text(message, "История очищена. Начинаем новый диалог.")
 
 
@@ -54,7 +59,7 @@ async def answer(message: Message, dialogue_service: DialogueService) -> None:
     try:
         reply = await dialogue_service.reply(message.from_user.id, message.text)
     except Exception as error:
-        logger.error("Ошибка запроса к LLM: %s", type(error).__name__)
+        logger.error("Ошибка обработки диалога: %s", type(error).__name__)
         await send_text(message, ERROR_MESSAGE)
         return
 

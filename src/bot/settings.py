@@ -14,6 +14,7 @@ class Settings:
     openrouter_model: str
     history_max_exchanges: int
     system_prompt: str
+    history_dir: Path = Path("data/history")
 
     @classmethod
     def load(cls, root: Path | None = None) -> "Settings":
@@ -46,4 +47,5 @@ class Settings:
             openrouter_model=values["OPENROUTER_MODEL"].strip(),
             history_max_exchanges=limit,
             system_prompt=prompt,
+            history_dir=root / (values.get("HISTORY_DIR") or "data/history"),
         )

@@ -32,7 +32,7 @@ async def main() -> None:
         dialogue_service = DialogueService(
             LlmClient(client, settings.openrouter_model),
             settings.system_prompt,
-            HistoryStore(settings.history_max_exchanges),
+            HistoryStore(settings.history_max_exchanges, settings.history_dir),
         )
         logger.info("Бот запускается")
         try:

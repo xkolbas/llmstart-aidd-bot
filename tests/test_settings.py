@@ -32,6 +32,13 @@ def test_loads_dotenv_and_prompt_with_default_limit(configured_root):
     assert settings.openrouter_model == "test-model"
     assert settings.history_max_exchanges == 10
     assert settings.system_prompt == "Тестовая роль"
+    assert settings.history_dir == configured_root / "data/history"
+
+
+def test_history_directory_can_be_absolute(configured_root, monkeypatch, tmp_path):
+    target = tmp_path / "sessions"
+    monkeypatch.setenv("HISTORY_DIR", str(target))
+    assert Settings.load(configured_root).history_dir == target
 
 
 def test_environment_overrides_dotenv(configured_root, monkeypatch):
