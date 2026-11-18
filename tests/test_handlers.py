@@ -50,8 +50,10 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
         method = session.await_args_list[0].args[1]
         assert isinstance(method, SendMessage)
         assert method.chat_id == 1
-        assert method.text.startswith("Привет! Я бот-ассистент.")
-        assert "текстовый вопрос" in method.text
+        assert method.text.startswith("Привет! Я бот-нутрициолог.")
+        assert "список продуктов с количеством" in method.text
+        assert "Расчёты ориентировочные" in method.text
+        assert "уточнение" in method.text
         assert "/clear" in method.text
         reply = session.await_args_list[1].args[1]
         assert isinstance(reply, SendMessage)
