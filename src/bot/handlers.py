@@ -1,8 +1,12 @@
 """Telegram-обработчики."""
 
 import logging
+import re
+from collections.abc import Iterator
+from html import escape
 
 from aiogram import F, Router
+from aiogram.enums import ParseMode
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message
 
@@ -15,15 +19,45 @@ ERROR_MESSAGE = "Не удалось получить ответ. Попробу
 UNKNOWN_COMMAND_MESSAGE = "Неизвестная команда. Доступные команды: /start и /clear."
 UNSUPPORTED_MESSAGE = "Я поддерживаю только текстовые сообщения."
 TELEGRAM_MESSAGE_LIMIT = 4096
+BOLD_MARKUP = re.compile(r"(?<!\*)\*\*(?=\S)([^*\r\n]+?)(?<=\S)\*\*(?!\*)")
 
 router = Router()
 router.message.outer_middleware(PerUserMiddleware())
 
 
-async def send_text(message: Message, text: str) -> None:
-    for offset in range(0, len(text), TELEGRAM_MESSAGE_LIMIT):
+def reply_html_chunks(text: str) -> Iterator[str]:
+    parts: list[str] = []
+    remaining = TELEGRAM_MESSAGE_LIMIT
+    for index, fragment in enumerate(BOLD_MARKUP.split(text)):
+        bold = index % 2 == 1
+        while fragment:
+            segment, fragment = fragment[:remaining], fragment[remaining:]
+            safe_text = escape(segment, quote=False)
+            parts.append(f"<b>{safe_text}</b>" if bold else safe_text)
+            remaining -= len(segment)
+            if remaining == 0:
+                yield "".join(parts)
+                parts.clear()
+                remaining = TELEGRAM_MESSAGE_LIMIT
+    if parts:
+        yield "".join(parts)
+
+
+async def send_text(message: Message, text: str, *, format_reply: bool = False) -> None:
+    chunks = (
+        reply_html_chunks(text)
+        if format_reply
+        else (
+            text[i : i + TELEGRAM_MESSAGE_LIMIT]
+            for i in range(0, len(text), TELEGRAM_MESSAGE_LIMIT)
+        )
+    )
+    for chunk in chunks:
         try:
-            await message.answer(text[offset : offset + TELEGRAM_MESSAGE_LIMIT])
+            if format_reply:
+                await message.answer(chunk, parse_mode=ParseMode.HTML)
+            else:
+                await message.answer(chunk)
         except Exception as error:
             logger.error(
                 "Не удалось отправить сообщение в Telegram: %s",
@@ -71,7 +105,7 @@ async def answer(message: Message, dialogue_service: DialogueService) -> None:
         await send_text(message, ERROR_MESSAGE)
         return
 
-    await send_text(message, reply)
+    await send_text(message, reply, format_reply=True)
 
 
 @router.message(F.chat.type == "private", F.from_user, F.text.startswith("/"))

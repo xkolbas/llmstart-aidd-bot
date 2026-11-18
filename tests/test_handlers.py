@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, call
 
 from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
 from aiogram.methods import SendMessage
 from aiogram.types import Chat, Message, Update, User
 
@@ -19,7 +20,7 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
         dispatcher = Dispatcher()
         dispatcher.include_router(router)
         dialogue_service = AsyncMock(spec=DialogueService)
-        dialogue_service.reply.return_value = "Ответ ассистента"
+        dialogue_service.reply.return_value = "• **Творог 5%**: сколько граммов?\n<100 г & более"
 
         for update_id, (chat_type, text) in enumerate(
             [
@@ -58,7 +59,8 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
         reply = session.await_args_list[1].args[1]
         assert isinstance(reply, SendMessage)
         assert reply.chat_id == 1
-        assert reply.text == "Ответ ассистента"
+        assert reply.text == "• <b>Творог 5%</b>: сколько граммов?\n&lt;100 г &amp; более"
+        assert reply.parse_mode == ParseMode.HTML
         dialogue_service.reply.assert_awaited_once_with(1, "Привет")
         dialogue_service.clear.assert_called_once_with(1)
         assert session.await_args_list[2].args[1].text.startswith("Неизвестная команда")
@@ -77,16 +79,16 @@ def test_long_reply_is_sent_completely_and_in_order():
         answer=AsyncMock(),
     )
     dialogue_service = AsyncMock(spec=DialogueService)
-    reply = "а" * TELEGRAM_MESSAGE_LIMIT + "б" * 10
+    prefix = "а" * (TELEGRAM_MESSAGE_LIMIT - 2)
+    reply = prefix + "**бвгд** и **незакрытый фрагмент"
     dialogue_service.reply.return_value = reply
 
     asyncio.run(answer(message, dialogue_service))
 
     assert message.answer.await_args_list == [
-        call("а" * TELEGRAM_MESSAGE_LIMIT),
-        call("б" * 10),
+        call(prefix + "<b>бв</b>", parse_mode=ParseMode.HTML),
+        call("<b>гд</b> и **незакрытый фрагмент", parse_mode=ParseMode.HTML),
     ]
-    assert "".join(item.args[0] for item in message.answer.await_args_list) == reply
 
 
 def test_llm_error_is_hidden_from_user_and_logs(caplog):
