@@ -52,6 +52,9 @@ def test_start_and_text_replies_are_sent_only_in_private_chat():
         assert isinstance(method, SendMessage)
         assert method.chat_id == 1
         assert method.text.startswith("Привет! Я бот-нутрициолог.")
+        assert "Оцени мой рацион за день" in method.text
+        assert "Что приготовить из гречки, яиц и овощей?" in method.text
+        assert "с учётом твоей цели" in method.text
         assert "список продуктов с количеством" in method.text
         assert "Расчёты ориентировочные" in method.text
         assert "уточнение" in method.text
