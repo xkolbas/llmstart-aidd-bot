@@ -10,6 +10,9 @@ def test_system_prompt_preserves_nutritionist_rules():
     assert "Учитывай цели и ограничения" in prompt
     assert "Перед персональной рекомендацией сначала уточни цель" in prompt
     assert "дождись ответа, прежде чем предлагать варианты" in prompt
+    assert "В текстовом диалоге" in prompt
+    assert "При запросе по фотографии перед уточняющим вопросом" in prompt
+    assert "кратко перечисли различимые продукты" in prompt
     assert "рассчитывай калорийность только по просьбе пользователя" in prompt
     assert "не выводи общий итог до получения всех необходимых уточнений" in prompt
     assert "Продукт — количество — ≈ N ккал" in prompt

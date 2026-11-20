@@ -14,13 +14,20 @@ class Settings:
     openrouter_model: str
     history_max_exchanges: int
     system_prompt: str
+    openrouter_image_model: str
+    image_prompt: str
     history_dir: Path = Path("data/history")
 
     @classmethod
     def load(cls, root: Path | None = None) -> "Settings":
         root = root if root is not None else Path(__file__).resolve().parents[2]
         values = {**dotenv_values(root / ".env"), **os.environ}
-        required = ("TELEGRAM_BOT_TOKEN", "OPENROUTER_API_KEY", "OPENROUTER_MODEL")
+        required = (
+            "TELEGRAM_BOT_TOKEN",
+            "OPENROUTER_API_KEY",
+            "OPENROUTER_MODEL",
+            "OPENROUTER_IMAGE_MODEL",
+        )
         missing = [name for name in required if not (values.get(name) or "").strip()]
         if missing:
             raise ValueError(f"Не заданы обязательные настройки: {', '.join(missing)}")
@@ -41,11 +48,20 @@ class Settings:
         if not prompt:
             raise ValueError("Системный промпт prompts/system.txt не должен быть пустым")
 
+        try:
+            image_prompt = (root / "prompts/image.txt").read_text(encoding="utf-8").strip()
+        except (OSError, UnicodeError) as error:
+            raise ValueError("Не удалось прочитать промпт prompts/image.txt") from error
+        if not image_prompt:
+            raise ValueError("Промпт prompts/image.txt не должен быть пустым")
+
         return cls(
             telegram_bot_token=values["TELEGRAM_BOT_TOKEN"].strip(),
             openrouter_api_key=values["OPENROUTER_API_KEY"].strip(),
             openrouter_model=values["OPENROUTER_MODEL"].strip(),
             history_max_exchanges=limit,
             system_prompt=prompt,
+            openrouter_image_model=values["OPENROUTER_IMAGE_MODEL"].strip(),
+            image_prompt=image_prompt,
             history_dir=root / (values.get("HISTORY_DIR") or "data/history"),
         )

@@ -7,6 +7,7 @@ from aiogram.types import Chat, Message, User
 
 from bot.dialogue_service import DialogueService
 from bot.history_store import HistoryStore
+from bot.image_client import ImageClient
 from bot.llm_client import LlmClient
 from bot.per_user_middleware import PerUserMiddleware
 
@@ -26,7 +27,13 @@ def test_clear_and_next_message_wait_until_previous_reply_is_sent(tmp_path):
         middleware = PerUserMiddleware()
         client = AsyncMock(spec=LlmClient)
         client.complete.return_value = "Ответ"
-        service = DialogueService(client, "Роль", HistoryStore(10, tmp_path))
+        service = DialogueService(
+            client,
+            "Роль",
+            HistoryStore(10, tmp_path),
+            image_client=AsyncMock(spec=ImageClient),
+            image_prompt="Фотоинструкции",
+        )
         sending = asyncio.Event()
         release = asyncio.Event()
         events = []
@@ -99,5 +106,74 @@ def test_exception_releases_user_lock(tmp_path):
         with pytest.raises(RuntimeError):
             await middleware(handler, message(1, "Первый"), {})
         assert await middleware(handler, message(1, "Следующий"), {}) == "Ответ"
+
+    asyncio.run(asyncio.wait_for(check(), timeout=3))
+
+
+def test_photo_download_send_text_and_clear_are_serialized(tmp_path):
+    async def check():
+        middleware = PerUserMiddleware()
+        client = AsyncMock(spec=LlmClient)
+        client.complete.return_value = "Текстовый ответ"
+        image_client = AsyncMock(spec=ImageClient)
+        image_client.analyze.return_value = "Описание фото"
+        store = HistoryStore(10, tmp_path)
+        service = DialogueService(
+            client, "Роль", store, image_client=image_client, image_prompt="Фото"
+        )
+        downloading = asyncio.Event()
+        release_download = asyncio.Event()
+        sending = asyncio.Event()
+        release_send = asyncio.Event()
+        events = []
+
+        async def handler(event, data):
+            events.append((event.from_user.id, event.text, "start"))
+            if event.text == "Фото":
+                downloading.set()
+                await release_download.wait()
+                await service.reply_photo(event.from_user.id, b"photo", "image/jpeg")
+                sending.set()
+                await release_send.wait()
+            elif event.text == "/clear":
+                await service.clear(event.from_user.id)
+            else:
+                await service.reply(event.from_user.id, event.text)
+            events.append((event.from_user.id, event.text, "sent"))
+
+        first = asyncio.create_task(middleware(handler, message(1, "Фото"), {}))
+        await downloading.wait()
+        text = asyncio.create_task(middleware(handler, message(1, "Уточнение"), {}))
+        clear = asyncio.create_task(middleware(handler, message(1, "/clear"), {}))
+        await asyncio.sleep(0)
+        await middleware(handler, message(2, "Другой пользователь"), {})
+        assert events == [
+            (1, "Фото", "start"),
+            (2, "Другой пользователь", "start"),
+            (2, "Другой пользователь", "sent"),
+        ]
+        release_download.set()
+        await sending.wait()
+        await asyncio.sleep(0)
+        assert not text.done()
+        assert not clear.done()
+        assert len(store.get(1)) == 2
+        release_send.set()
+        await asyncio.gather(first, text, clear)
+        assert events[3:] == [
+            (1, "Фото", "sent"),
+            (1, "Уточнение", "start"),
+            (1, "Уточнение", "sent"),
+            (1, "/clear", "start"),
+            (1, "/clear", "sent"),
+        ]
+        assert store.get(1) == []
+        assert len(store.get(2)) == 2
+        assert client.complete.await_args_list[-1].args[0] == [
+            {"role": "system", "content": "Роль"},
+            {"role": "user", "content": "Фото"},
+            {"role": "assistant", "content": "Описание фото"},
+            {"role": "user", "content": "Уточнение"},
+        ]
 
     asyncio.run(asyncio.wait_for(check(), timeout=3))

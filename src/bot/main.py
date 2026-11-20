@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from bot.dialogue_service import DialogueService
 from bot.handlers import router
 from bot.history_store import HistoryStore
+from bot.image_client import ImageClient
 from bot.llm_client import LlmClient
 from bot.settings import Settings
 
@@ -33,6 +34,8 @@ async def main() -> None:
             LlmClient(client, settings.openrouter_model),
             settings.system_prompt,
             HistoryStore(settings.history_max_exchanges, settings.history_dir),
+            image_client=ImageClient(client, settings.openrouter_image_model),
+            image_prompt=settings.image_prompt,
         )
         logger.info("Бот запускается")
         try:

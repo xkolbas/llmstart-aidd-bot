@@ -13,6 +13,8 @@ def test_configures_clients_injects_service_closes_sessions_and_logs(caplog, tmp
         openrouter_model="test-model",
         history_max_exchanges=10,
         system_prompt="Тестовая роль",
+        openrouter_image_model="image-model",
+        image_prompt="Анализ фото",
         history_dir=tmp_path,
     )
     sdk_context = AsyncMock()
@@ -42,6 +44,9 @@ def test_configures_clients_injects_service_closes_sessions_and_logs(caplog, tmp
     assert service.system_prompt == "Тестовая роль"
     assert service.llm_client.model == "test-model"
     assert service.llm_client.client is sdk_context.__aenter__.return_value
+    assert service.image_client.model == "image-model"
+    assert service.image_client.client is service.llm_client.client
+    assert service.image_prompt == "Анализ фото"
     assert service.history_store.max_messages == 20
     assert service.history_store.get(1) == []
     sdk_context.__aexit__.assert_awaited_once()
